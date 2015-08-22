@@ -10,7 +10,7 @@
 #include <stdbool.h>
 
 #define INPUT_STRING_SIZE 80
-#define MAX_DIR_STRING_SIZE 5
+#define MAX_DIR_STRING_SIZE 255
 
 #include "io.h"
 #include "parse.h"
@@ -18,6 +18,23 @@
 #include "shell.h"
 
 char *cdir=NULL;
+
+void terminal_cmd(tok_t arg[]){
+	int ee=0;
+	pid_t id=fork();
+	
+	if(id==0){
+		
+		ee=execv(arg[0],arg);
+		fprintf(stdout,"failed to run the file, check that it exists!\n");
+		exit(1);
+	}else{
+		wait(&ee);
+		//printf("ee: %d\n",ee);
+	}
+	
+	
+}
 
 void set_dir(){
 	
@@ -86,10 +103,14 @@ int cmd_cd(tok_t arg[]){
 	//printf("TEST: %s\n",temp);
 	
 	if(chdir(temp)==0){
+		set_dir();
 		return 1;
 	}else{
+		fprintf(stdout,"no such file or directory :\\\n");
 		return 0;
 	}
+	
+	
 }
 
 int lookup(char cmd[]) {
@@ -169,16 +190,17 @@ int shell (int argc, char *argv[]) {
   fprintf(stdout, "%d:%s $ ", lineNum,cdir);
   while ((s = freadln(stdin))){
   	
-  	
-  	
     t = getToks(s); /* break the line into tokens */
     fundex = lookup(t[0]); /* Is first token a shell literal */
     if(fundex >= 0) cmd_table[fundex].fun(&t[1]);
     else {
-      fprintf(stdout, "This shell only supports built-ins. Replace this to run programs as commands.\n");
+    	terminal_cmd(t);
+    	//execl(t[0],t[0],NULL);
+    	//system(t[0]);
+      	//fprintf(stdout, "This shell only supports built-ins. Replace this to run programs as commands.\n");
     }
     free(s);
-    set_dir();
+    
     fprintf(stdout, "%d:%s $ ", lineNum,cdir);
   }
   return 0;
