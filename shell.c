@@ -6,12 +6,13 @@
 #include <unistd.h>
 #include <termios.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <stdbool.h>
-
+#include <fcntl.h>
 #define INPUT_STRING_SIZE 80
 #define MAX_DIR_STRING_SIZE 255
-
+#define PATH_SPLITTER ":"
 #include "io.h"
 #include "parse.h"
 #include "process.h"
@@ -24,16 +25,58 @@ void terminal_cmd(tok_t arg[]){
 	pid_t id=fork();
 	
 	if(id==0){
+		int tokenPlace=isDirectTok(arg,">");
+		//printf("tokPlace: %d\n",tokenPlace);
+		if(tokenPlace){
+			int pos=containsChar(arg[tokenPlace],'>');
+			//printf("> pos: %d\n",pos);
+			if(pos==0){
+				if(strlen(arg[tokenPlace])==1){
+					int newfd=open(arg[tokenPlace+1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+					if(newfd>-1){
+						dup2(newfd,STDOUT_FILENO);
+						int moveUp=tokenPlace;
+						arg[moveUp]=NULL;
+						arg[moveUp+1]=NULL;
+						
+						while(arg[moveUp+2]){
+							arg[moveUp]=arg[moveUp+2];
+							//free(arg[moveUp+2]);
+							arg[moveUp+2]=NULL;
+							moveUp++;
+						}
+					}
+				}
+			}
+		}
 		
-		ee=execv(arg[0],arg);
-		fprintf(stdout,"failed to run the file, check that it exists!\n");
+		
+		
+		
+		if(containsChar(arg[0],'/')>-1){
+			execv(arg[0],arg);
+		}else{
+			path_name *pth=splitPaths(getenv("PATH"));
+	
+			int i;
+			for(i=0;pth[i];i++){
+				char* temp=malloc(strlen(pth[i])+strlen(arg[0])+2);
+				temp=strcpy(temp,pth[i]);
+				//printf("temp: %s\n",temp);
+				execv(strcat(strcat(temp,"/"),arg[0]),arg);
+				
+				free(temp);
+			}
+			
+		}
+		
+		//system("cowsay sorry china I cant find a program to run");
+		//fprintf(stdout,"failed to run the file, check that it exists!\n");
 		exit(1);
 	}else{
 		wait(&ee);
 		//printf("ee: %d\n",ee);
 	}
-	
-	
 }
 
 void set_dir(){
@@ -194,13 +237,16 @@ int shell (int argc, char *argv[]) {
     fundex = lookup(t[0]); /* Is first token a shell literal */
     if(fundex >= 0) cmd_table[fundex].fun(&t[1]);
     else {
-    	terminal_cmd(t);
+    	if(t[0]){
+    		terminal_cmd(t);	
+    	}
+    	
     	//execl(t[0],t[0],NULL);
     	//system(t[0]);
       	//fprintf(stdout, "This shell only supports built-ins. Replace this to run programs as commands.\n");
     }
     free(s);
-    
+    freeToks(t);
     fprintf(stdout, "%d:%s $ ", lineNum,cdir);
   }
   return 0;

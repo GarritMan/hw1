@@ -30,8 +30,10 @@
 #define MAXTOKS 100
 
 typedef char *tok_t;
-
+typedef char *path_name;
 tok_t *getToks(char *line);
+path_name *splitPaths(const char *pathList);
+
 void freeToks(tok_t *toks);
 
 #endif
