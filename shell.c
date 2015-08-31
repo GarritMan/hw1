@@ -25,32 +25,10 @@ void terminal_cmd(tok_t arg[]){
 	pid_t id=fork();
 	
 	if(id==0){
-		int tokenPlace=isDirectTok(arg,">");
-		//printf("tokPlace: %d\n",tokenPlace);
-		if(tokenPlace){
-			int pos=containsChar(arg[tokenPlace],'>');
-			//printf("> pos: %d\n",pos);
-			if(pos==0){
-				if(strlen(arg[tokenPlace])==1){
-					int newfd=open(arg[tokenPlace+1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-					if(newfd>-1){
-						dup2(newfd,STDOUT_FILENO);
-						int moveUp=tokenPlace;
-						arg[moveUp]=NULL;
-						arg[moveUp+1]=NULL;
-						
-						while(arg[moveUp+2]){
-							arg[moveUp]=arg[moveUp+2];
-							//free(arg[moveUp+2]);
-							arg[moveUp+2]=NULL;
-							moveUp++;
-						}
-					}
-				}
-			}
-		}
 		
-		
+		redirectOut(arg); // can find this function in io.c
+		redirectIn(arg);
+		//Really struggling with redirecting input, but i think i may have a fairly decent solution.
 		
 		
 		if(containsChar(arg[0],'/')>-1){
@@ -71,7 +49,7 @@ void terminal_cmd(tok_t arg[]){
 		}
 		
 		//system("cowsay sorry china I cant find a program to run");
-		//fprintf(stdout,"failed to run the file, check that it exists!\n");
+		fprintf(stdout,"failed to run the file, check that it exists!\n");
 		exit(1);
 	}else{
 		wait(&ee);
