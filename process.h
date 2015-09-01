@@ -6,6 +6,8 @@
 #include <termios.h>
 #include <unistd.h>
 
+#define TRUE 1
+#define FALSE 0
 typedef struct process
 {
   char** argv;
@@ -22,7 +24,7 @@ typedef struct process
 } process;
 
 process* first_process; //pointer to the first process that is launched */
-
+process* latest_process;
 void launch_process(process* p);
 void put_process_in_background (process* p, int cont);
 void put_process_in_foreground (process* p, int cont);

@@ -18,42 +18,47 @@
 #include "process.h"
 #include "shell.h"
 
+
 char *cdir=NULL;
 
+int cmd_help(tok_t arg[]);
+int cmd_cd(tok_t arg[]);
+process * create_process(tok_t* arg);
+void add_process(process* p);
+void desc_process(process* p);
+
 void terminal_cmd(tok_t arg[]){
-	int ee=0;
+	
+	int status;
+	process *p=create_process(arg);
+	add_process(p);
+	latest_process=p;
+	
+	
 	pid_t id=fork();
 	
 	if(id==0){
 		
-		redirectOut(arg); // can find this function in io.c
-		redirectIn(arg);
-		//Really struggling with redirecting input, but i think i may have a fairly decent solution.
+		latest_process->pid=getpid();
+		launch_process(latest_process);
 		
+	}else if(id>0){
+		latest_process->pid=id;
+		//desc_process(latest_process);
+		waitpid(id,&(latest_process->status),WUNTRACED);
 		
-		if(containsChar(arg[0],'/')>-1){
-			execv(arg[0],arg);
-		}else{
-			path_name *pth=splitPaths(getenv("PATH"));
-	
-			int i;
-			for(i=0;pth[i];i++){
-				char* temp=malloc(strlen(pth[i])+strlen(arg[0])+2);
-				temp=strcpy(temp,pth[i]);
-				//printf("temp: %s\n",temp);
-				execv(strcat(strcat(temp,"/"),arg[0]),arg);
-				
-				free(temp);
+		if(WEXITSTATUS(latest_process->status)==EXIT_FAILURE){
+			if(latest_process->prev){
+				latest_process=p->prev;
+				free(p);	
+			}else{
+				first_process=latest_process=NULL;
 			}
 			
 		}
 		
-		//system("cowsay sorry china I cant find a program to run");
-		fprintf(stdout,"failed to run the file, check that it exists!\n");
-		exit(1);
-	}else{
-		wait(&ee);
-		//printf("ee: %d\n",ee);
+	}else if(id<0){
+		fprintf(stderr,"failed to fork\n");
 	}
 }
 
@@ -83,9 +88,7 @@ int cmd_quit(tok_t arg[]) {
   return 1;
 }
 
-int cmd_help(tok_t arg[]);
 
-int cmd_cd(tok_t arg[]);
 
 /* Command Lookup table */
 typedef int cmd_fun_t (tok_t args[]); /* cmd functions take token array and return int */
@@ -142,8 +145,7 @@ int lookup(char cmd[]) {
   return -1;
 }
 
-void init_shell()
-{
+void init_shell(){
   /* Check if we are running interactively */
   shell_terminal = STDIN_FILENO;
 
@@ -152,21 +154,24 @@ void init_shell()
   shell_is_interactive = isatty(shell_terminal);
 
   if(shell_is_interactive){
-
+	
     /* force into foreground */
-    while(tcgetpgrp (shell_terminal) != (shell_pgid = getpgrp()))
-      kill( - shell_pgid, SIGTTIN);
-
+    while(tcgetpgrp (shell_terminal) != (shell_pgid = getpgrp())){
+    	
+      	kill( - shell_pgid, SIGTTIN);
+	}
     shell_pgid = getpid();
     /* Put shell in its own process group */
     if(setpgid(shell_pgid, shell_pgid) < 0){
       perror("Couldn't put the shell in its own process group");
       exit(1);
     }
-
+	
     /* Take control of the terminal */
     tcsetpgrp(shell_terminal, shell_pgid);
+   
     tcgetattr(shell_terminal, &shell_tmodes);
+    
   }
   /** YOUR CODE HERE */
 }
@@ -174,18 +179,50 @@ void init_shell()
 /**
  * Add a process to our process list
  */
-void add_process(process* p)
-{
-  /** YOUR CODE HERE */
+void add_process(process* p){
+	if(!first_process){
+			
+		first_process=p;
+		first_process->prev=NULL;
+		
+	}else{
+		
+		latest_process->next=p;
+		p->prev=latest_process;
+			
+	}
 }
 
 /**
  * Creates a process given the inputString from stdin
  */
-process* create_process(char* inputString)
-{
-  /** YOUR CODE HERE */
-  return NULL;
+process* create_process(tok_t * arg){
+	process * P=malloc(sizeof(process));
+	P->argv=arg;
+	P->tmodes=shell_tmodes;
+	
+	P->stdin=STDIN_FILENO;
+	P->stdout=STDOUT_FILENO;
+	P->stderr=STDERR_FILENO;
+	P->completed=0;
+	P->stopped=0;
+	P->background=0;
+	
+	redirectOut(P);
+	redirectIn(P);
+	
+	int arg_count=0;
+	while(P->argv[arg_count]){
+		arg_count++;
+	}
+	
+	P->argc=arg_count;
+	
+	return P;
+}
+
+void desc_process(process *p){
+	fprintf(stdout,"pid: %d,proc ptr: %p,prev: %p\n",p->pid,p,p->prev);
 }
 
 
@@ -212,15 +249,13 @@ int shell (int argc, char *argv[]) {
   while ((s = freadln(stdin))){
   	
     t = getToks(s); /* break the line into tokens */
+    //printf("args s: %s\n",s);
     fundex = lookup(t[0]); /* Is first token a shell literal */
     if(fundex >= 0) cmd_table[fundex].fun(&t[1]);
     else {
     	if(t[0]){
     		terminal_cmd(t);	
     	}
-    	
-    	//execl(t[0],t[0],NULL);
-    	//system(t[0]);
       	//fprintf(stdout, "This shell only supports built-ins. Replace this to run programs as commands.\n");
     }
     free(s);

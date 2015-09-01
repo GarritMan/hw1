@@ -9,6 +9,7 @@
 
 #include "io.h"
 #include "parse.h"
+#include "process.h"
 /* Read a line from input file and return as a string object */
 
 #define MAXLINE 1024
@@ -29,7 +30,9 @@ void freeln(char *ln) {
   free(ln);
 }
 
-void redirectOut(tok_t arg[]){
+void redirectOut(process* p){
+	tok_t* arg=p->argv;
+	
 	int tokenPlace=isDirectTok(arg,">");
 		//printf("tokPlace: %d\n",tokenPlace);
 		if(tokenPlace){
@@ -40,7 +43,8 @@ void redirectOut(tok_t arg[]){
 				if(length==1){
 					int newfd=open(arg[tokenPlace+1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 					if(newfd>-1){
-						dup2(newfd,STDOUT_FILENO);
+						//dup2(newfd,STDOUT_FILENO);
+						p->stdout=newfd;
 						int moveUp=tokenPlace;
 						arg[moveUp]=NULL;
 						arg[moveUp+1]=NULL;
@@ -55,7 +59,8 @@ void redirectOut(tok_t arg[]){
 				}else if(length > 1){
 					int newfd=open(arg[tokenPlace]+1, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 					if(newfd>-1){
-						dup2(newfd,STDOUT_FILENO);
+						//dup2(newfd,STDOUT_FILENO);
+						p->stdout=newfd;
 						int moveUp=tokenPlace;
 						arg[moveUp]=NULL;
 						
@@ -71,7 +76,9 @@ void redirectOut(tok_t arg[]){
 		}
 }
 
-void redirectIn(tok_t arg[]){
+void redirectIn(process* p){
+	
+	tok_t* arg=p->argv;
 	int tokenPlace=isDirectTok(arg,"<");
 		//printf("tokPlace: %d\n",tokenPlace);
 		if(tokenPlace){
@@ -83,7 +90,8 @@ void redirectIn(tok_t arg[]){
 				if(length==1){
 					int newfd=open(arg[tokenPlace+1], O_RDONLY , S_IRUSR | S_IWUSR);
 					if(newfd>-1){
-						dup2(newfd,STDIN_FILENO);
+						//dup2(newfd,STDIN_FILENO);
+						p->stdin=newfd;
 						int moveUp=tokenPlace;
 						arg[moveUp]=NULL;
 						arg[moveUp+1]=NULL;
@@ -94,11 +102,14 @@ void redirectIn(tok_t arg[]){
 							arg[moveUp+2]=NULL;
 							moveUp++;
 						}
+					}else{
+						fprintf(stderr,"file does not exist or has wrong permissions \n");
 					}
 				}else if(length > 1){
 					int newfd=open(arg[tokenPlace]+1, O_RDONLY , S_IRUSR | S_IWUSR);
 					if(newfd>-1){
-						dup2(newfd,STDIN_FILENO);
+						//dup2(newfd,STDIN_FILENO);
+						p->stdin=newfd;
 						int moveUp=tokenPlace;
 						arg[moveUp]=NULL;
 						
