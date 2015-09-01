@@ -45,7 +45,15 @@ void terminal_cmd(tok_t arg[]){
 	}else if(id>0){
 		latest_process->pid=id;
 		//desc_process(latest_process);
-		waitpid(id,&(latest_process->status),WUNTRACED);
+		
+		if(latest_process->background){
+			waitpid(id,&(latest_process->status),WNOHANG | WUNTRACED);
+		}else{
+			waitpid(id,&(latest_process->status),WUNTRACED);
+			tcsetattr(shell_terminal,TCSADRAIN,&shell_tmodes);
+			tcsetpgrp(shell_terminal,shell_pgid);
+			
+		}
 		
 		if(WEXITSTATUS(latest_process->status)==EXIT_FAILURE){
 			if(latest_process->prev){
@@ -161,6 +169,14 @@ void init_shell(){
     	
       	kill( - shell_pgid, SIGTTIN);
 	}
+	
+	signal (SIGINT, SIG_IGN);//interrupt : C-c
+    signal (SIGQUIT, SIG_IGN);/*C-\, same as SIGINT, makes core dump, (like user detects error) */
+    signal (SIGTSTP, SIG_IGN);//C-z
+    signal (SIGTTIN, SIG_IGN);//sent if tries to read from terminal when in background
+    signal (SIGTTOU, SIG_IGN);//same as previous but writing to terminal
+    
+	
     shell_pgid = getpid();
     /* Put shell in its own process group */
     if(setpgid(shell_pgid, shell_pgid) < 0){
@@ -211,6 +227,23 @@ process* create_process(tok_t * arg){
 	
 	redirectOut(P);
 	redirectIn(P);
+	
+	int tokPos;
+	if((tokPos=isDirectTok(arg,"&"))){
+		
+		if(strlen(arg[tokPos])==1){
+			P->background=1;
+			int moveUp=tokPos;
+			arg[moveUp]=NULL;
+						
+			while(arg[moveUp+1]){
+				arg[moveUp]=arg[moveUp+1];
+				
+				arg[moveUp+1]=NULL;
+				moveUp++;
+			}
+		}
+	}
 	
 	int arg_count=0;
 	while(P->argv[arg_count]){

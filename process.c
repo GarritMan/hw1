@@ -14,8 +14,20 @@
  */
 void launch_process(process *p)
 {
+	if(shell_is_interactive){
+		setpgid(p->pid,p->pid);
+		if(!p->background){
+			tcsetpgrp(shell_terminal,p->pid);
+		}
 	
-		
+	
+		signal (SIGINT, SIG_DFL);
+		signal (SIGQUIT, SIG_DFL);
+		signal (SIGTSTP, SIG_DFL);
+		signal (SIGTTIN, SIG_DFL);
+		signal (SIGTTOU, SIG_DFL);
+	}
+	
 	dup2(p->stdout,STDOUT_FILENO);
 	dup2(p->stdin,STDIN_FILENO);
 		
@@ -36,7 +48,7 @@ void launch_process(process *p)
 			
 	}
 	
-	free(p);
+	//free(p);
 	//system("cowsay sorry china I cant find a program to run");
 	fprintf(stderr,"failed to run the file, check that it exists!\n");
 	exit(EXIT_FAILURE);
