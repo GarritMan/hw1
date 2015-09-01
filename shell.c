@@ -53,6 +53,7 @@ void terminal_cmd(tok_t arg[]){
 				free(p);	
 			}else{
 				first_process=latest_process=NULL;
+				free(p);
 			}
 			
 		}
