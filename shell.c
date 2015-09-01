@@ -26,6 +26,10 @@ int cmd_cd(tok_t arg[]);
 process * create_process(tok_t* arg);
 void add_process(process* p);
 void desc_process(process* p);
+int cmd_wait(tok_t arg[]);
+int cmd_fg(tok_t arg[]);
+int cmd_bg(tok_t arg[]);
+
 
 void terminal_cmd(tok_t arg[]){
 	
@@ -47,6 +51,7 @@ void terminal_cmd(tok_t arg[]){
 		//desc_process(latest_process);
 		
 		if(latest_process->background){
+			fprintf(stdout,"ID: %d running in background\n",latest_process->pid);
 			waitpid(id,&(latest_process->status),WNOHANG | WUNTRACED);
 		}else{
 			waitpid(id,&(latest_process->status),WUNTRACED);
@@ -110,7 +115,10 @@ typedef struct fun_desc {
 fun_desc_t cmd_table[] = {
   {cmd_help, "?", "show this help menu"},
   {cmd_quit, "quit", "quit the command shell"},
-  {cmd_cd,"cd","change current working directory"}
+  {cmd_cd,"cd","change current working directory"},
+  {cmd_wait,"wait","Wait for all background jobs to terminate before returning to prompt"},
+  {cmd_fg,"fg","Move process with specific id or most recent process into foreground"},
+  {cmd_bg,"bg","Move process with specific id or most recent process into background"}
 };
 
 int cmd_help(tok_t arg[]) {
@@ -145,6 +153,38 @@ int cmd_cd(tok_t arg[]){
 	
 	
 }
+
+int cmd_wait(tok_t arg[]){
+	process *p;
+	for(p=first_process ; p ; p=p->next){
+		
+		waitpid(p->pid,&(p->status),WUNTRACED);
+		
+	}
+	
+	return 1;
+}
+int cmd_fg(tok_t arg[]){
+	if(arg[0]){
+		pid_t id=atoi(arg[0]);
+		process *p;
+		for(p=first_process; p ; p=p->next){
+			if(p->pid==id){
+				put_process_in_foreground(p,1);
+				break;
+			}
+		}
+		
+	}
+	
+	return 1;
+}
+int cmd_bg(tok_t arg[]){
+	
+	system("cowsay I dont really know what to do in this function. moo.");
+	return 1;
+}
+
 
 int lookup(char cmd[]) {
   int i;

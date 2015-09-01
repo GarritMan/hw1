@@ -58,16 +58,19 @@ void launch_process(process *p)
  * is in interactive mode. If the cont argument is true, send the process
  * group a SIGCONT signal to wake it up.
  */
-void
-put_process_in_foreground (process *p, int cont)
-{
-  /** YOUR CODE HERE */
+void put_process_in_foreground (process *p, int cont){
+	kill(p->pid,SIGCONT);
+	p->background=0;
+	tcsetpgrp(shell_terminal,p->pid);
+	waitpid(p->pid,&(p->status),WUNTRACED);
+	
+	tcsetattr(shell_terminal,TCSADRAIN,&shell_tmodes);
+	tcsetpgrp(shell_terminal,shell_pgid);
+	
 }
 
 /* Put a process in the background. If the cont argument is true, send
  * the process group a SIGCONT signal to wake it up. */
-void
-put_process_in_background (process *p, int cont)
-{
-  /** YOUR CODE HERE */
+void put_process_in_background (process *p, int cont){
+	
 }
